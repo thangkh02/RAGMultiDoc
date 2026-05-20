@@ -15,5 +15,5 @@ class MessageRepository:
         return message.id
 
     async def list_session_messages(self, session_id: str) -> list[dict[str, Any]]:
-        cursor = self._collection().find({"session_id": session_id})
+        cursor = self._collection().find({"session_id": session_id}).sort("created_at", 1)
         return [message async for message in cursor]

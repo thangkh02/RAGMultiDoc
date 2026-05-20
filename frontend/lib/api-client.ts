@@ -1,4 +1,4 @@
-import type { ChatRequest, ChatResponse } from "@/features/chat/types";
+import type { ChatRequest, ChatResponse, SessionItem, SessionMessageItem } from "@/features/chat/types";
 import type { DocumentItem } from "@/features/documents/types";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -30,6 +30,16 @@ export const apiClient = {
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
   chat: {
     ask: (payload: ChatRequest) => request<ChatResponse>("/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }),
+  },
+  sessions: {
+    list: () => request<SessionItem[]>("/sessions"),
+    create: (payload: { title?: string | null; description?: string | null }) =>
+      request<SessionItem>("/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
+    messages: (sessionId: string) => request<SessionMessageItem[]>(`/sessions/${encodeURIComponent(sessionId)}/messages`),
   },
   documents: {
     list: (ownerUserId: string) => request<DocumentItem[]>(`/documents?owner_user_id=${encodeURIComponent(ownerUserId)}`),

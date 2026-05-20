@@ -1,23 +1,17 @@
 "use client";
 
 import type { PropsWithChildren } from "react";
-import Link from "next/link";
+
+import { AuthModal } from "@/components/auth/AuthModal";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export function AppShell({ children }: PropsWithChildren) {
+  const { ready, user } = useAuth();
+
   return (
-    <main className="page-shell">
-      <header className="topbar">
-        <div>
-          <div className="brand">RAG Chatbot</div>
-          <div className="muted">Monorepo scaffold</div>
-        </div>
-        <nav className="nav">
-          <Link href="/">Home</Link>
-          <Link href="/chat">Chat</Link>
-          <Link href="/documents">Documents</Link>
-        </nav>
-      </header>
+    <main className="app-frame">
       {children}
+      {ready && !user ? <AuthModal /> : null}
     </main>
   );
 }

@@ -16,5 +16,12 @@ class SessionRepository:
         return session.id
 
     async def list_user_sessions(self, user_id: str) -> list[dict[str, Any]]:
-        cursor = self._collection().find({"owner_user_id": user_id})
+        cursor = self._collection().find({"owner_user_id": user_id}).sort([("last_message_at", -1), ("updated_at", -1)])
         return [session async for session in cursor]
+
+    async def touch_session(self, session_id: str) -> None:
+        now = datetime.utcnow()
+        await self._collection().update_one(
+            {"_id": session_id},
+            {"$set": {"last_message_at": now, "updated_at": now}},
+        )

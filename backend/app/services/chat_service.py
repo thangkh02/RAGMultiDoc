@@ -1,6 +1,7 @@
 from app.models.message import MessageModel
 from app.repositories.message_repository import MessageRepository
 from app.rag.pipeline.qa_pipeline import QAPipeline
+from app.services.session_service import SessionService
 from app.utils.id_utils import generate_id
 
 
@@ -8,6 +9,7 @@ class ChatService:
     def __init__(self) -> None:
         self.qa_pipeline = QAPipeline()
         self.message_repository = MessageRepository()
+        self.session_service = SessionService()
 
     async def ask_question(self, request, user_id: str):
         result = self.qa_pipeline.run(
@@ -34,4 +36,6 @@ class ChatService:
         )
         await self.message_repository.create_message(user_message)
         await self.message_repository.create_message(assistant_message)
+        if request.session_id:
+            await self.session_service.touch_session(request.session_id)
         return result

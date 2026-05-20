@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.chat import router as chat_router
 from app.api.routes.documents import router as documents_router
 from app.api.routes.health import router as health_router
+from app.api.routes.messages import router as messages_router
 from app.api.routes.sessions import router as sessions_router
 from app.api.routes.system_documents import router as system_documents_router
 from app.core.config import settings
@@ -27,6 +28,7 @@ def create_app() -> FastAPI:
     app.include_router(documents_router, prefix="/documents", tags=["documents"])
     app.include_router(system_documents_router, prefix="/system-documents", tags=["system-documents"])
     app.include_router(sessions_router, prefix="/sessions", tags=["sessions"])
+    app.include_router(messages_router, tags=["messages"])
     app.include_router(chat_router, prefix="/chat", tags=["chat"])
 
     @app.on_event("startup")

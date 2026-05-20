@@ -1,36 +1,83 @@
 "use client";
 
-import { useState } from "react";
-
-import { ScopeSelector } from "@/components/documents/ScopeSelector";
-import { RetrievalScope } from "@/lib/constants";
+import { useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from "react";
 
 type Props = {
-  onSend: (question: string, scope: RetrievalScope) => Promise<void>;
-  defaultScope: RetrievalScope;
+  onSend: (question: string) => Promise<void>;
+  onUpload: (file: File) => Promise<void>;
+  disabled?: boolean;
 };
 
-export function ChatInput({ onSend, defaultScope }: Props) {
+export function ChatInput({ onSend, onUpload, disabled = false }: Props) {
   const [question, setQuestion] = useState("");
-  const [scope, setScope] = useState<RetrievalScope>(defaultScope);
+  const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const value = question.trim();
+    if (!value || sending || disabled) return;
+    setSending(true);
+    try {
+      await onSend(value);
+      setQuestion("");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      event.currentTarget.form?.requestSubmit();
+    }
+  };
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      await onUpload(file);
+    } finally {
+      setUploading(false);
+      event.target.value = "";
+    }
+  };
 
   return (
-    <form
-      className="stack"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        if (!question.trim()) return;
-        await onSend(question.trim(), scope);
-        setQuestion("");
-      }}
-    >
-      <div className="field">
-        <label>Question</label>
-        <textarea className="textarea" value={question} onChange={(event) => setQuestion(event.target.value)} />
-      </div>
-      <ScopeSelector value={scope} onChange={setScope} />
-      <button className="button" type="submit">
-        Send
+    <form className="chat-composer" onSubmit={(e) => void handleSubmit(e)}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.doc,.docx"
+        hidden
+        onChange={(e) => void handleFileChange(e)}
+      />
+
+      <button
+        type="button"
+        className="composer-icon-btn"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={sending || uploading || disabled}
+        aria-label="Upload tài liệu"
+        title="Upload tài liệu"
+      >
+        <span>{uploading ? "..." : "+"}</span>
+      </button>
+
+      <textarea
+        className="chat-input"
+        value={question}
+        placeholder="Nhập câu hỏi. Enter để gửi, Shift+Enter xuống dòng."
+        onChange={(event) => setQuestion(event.target.value)}
+        onKeyDown={handleKeyDown}
+        disabled={sending || disabled}
+      />
+
+      <button className="composer-send-btn" type="submit" disabled={!question.trim() || sending || disabled}>
+        Gửi
       </button>
     </form>
   );
