@@ -1,0 +1,37 @@
+[
+  {
+    "id": "system_source_prefix",
+    "answer": "Hồ sơ gồm giấy đề nghị đăng ký doanh nghiệp tư nhân.",
+    "sources": [
+      {
+        "source_type": "system",
+        "filename": "system.docx"
+      }
+    ],
+    "expected_prefix": "Theo tài liệu hệ thống:"
+  },
+  {
+    "id": "user_upload_source_prefix",
+    "answer": "Tài liệu nói về học phí năm 2024.",
+    "sources": [
+      {
+        "source_type": "user_upload",
+        "filename": "hoc_phi_2024.pdf"
+      }
+    ],
+    "expected_prefix": "Theo tài liệu bạn upload:"
+  },
+  {
+    "id": "mixed_source_prefix",
+    "answer": "Tài liệu hệ thống yêu cầu hồ sơ A; file upload có hồ sơ A.",
+    "sources": [
+      {
+        "source_type": "system"
+      },
+      {
+        "source_type": "user_upload"
+      }
+    ],
+    "expected_contains": "tài liệu hệ thống và tài liệu bạn upload"
+  }
+]

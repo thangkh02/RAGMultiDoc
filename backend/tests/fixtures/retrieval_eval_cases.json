@@ -1,0 +1,68 @@
+[
+  {
+    "id": "system_procedure_hit",
+    "question": "Thủ tục đăng ký thành lập doanh nghiệp tư nhân cần hồ sơ gì?",
+    "expected_chunk_ids": ["chunk_system_1"],
+    "contexts": [
+      {
+        "id": "chunk_system_1",
+        "content": "Thành phần hồ sơ gồm giấy đề nghị đăng ký doanh nghiệp tư nhân.",
+        "similarity": 0.92,
+        "metadata": {
+          "chunk_id": "chunk_system_1",
+          "source_type": "system",
+          "visibility": "global",
+          "procedure_title": "Đăng ký thành lập doanh nghiệp tư nhân"
+        }
+      },
+      {
+        "id": "chunk_noise",
+        "content": "Nội dung không liên quan.",
+        "similarity": 0.03,
+        "metadata": {
+          "chunk_id": "chunk_noise",
+          "source_type": "system",
+          "visibility": "global"
+        }
+      }
+    ],
+    "metadata_filter": {
+      "source_type": "system",
+      "visibility": "global"
+    }
+  },
+  {
+    "id": "user_upload_wrong_owner_rejected",
+    "question": "File vừa upload nói gì?",
+    "expected_chunk_ids": ["chunk_user_1"],
+    "contexts": [
+      {
+        "id": "chunk_user_1",
+        "content": "Tài liệu user mô tả học phí năm 2024.",
+        "similarity": 0.88,
+        "metadata": {
+          "chunk_id": "chunk_user_1",
+          "source_type": "user_upload",
+          "owner_user_id": "user_1",
+          "session_id": "sess_1"
+        }
+      },
+      {
+        "id": "chunk_other_user",
+        "content": "Tài liệu của user khác.",
+        "similarity": 0.91,
+        "metadata": {
+          "chunk_id": "chunk_other_user",
+          "source_type": "user_upload",
+          "owner_user_id": "user_2",
+          "session_id": "sess_1"
+        }
+      }
+    ],
+    "metadata_filter": {
+      "source_type": "user_upload",
+      "owner_user_id": "user_1",
+      "session_id": "sess_1"
+    }
+  }
+]

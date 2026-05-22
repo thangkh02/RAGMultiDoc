@@ -27,6 +27,7 @@ from app.core.constants import (
 def _normalize_text(text: str) -> str:
     normalized = unicodedata.normalize("NFKD", text.lower())
     stripped = "".join(char for char in normalized if not unicodedata.combining(char))
+    stripped = stripped.replace("đ", "d")
     return re.sub(r"\s+", " ", stripped).strip()
 
 
@@ -73,9 +74,18 @@ class ScopeResolver:
         "file vua upload",
         "tai lieu vua upload",
         "file moi upload",
+        "file vua tai len",
+        "tai lieu vua tai len",
         "tai lieu hien tai",
         "trong session nay",
         "session nay",
+    )
+    _ambiguous_document_patterns = (
+        "file do",
+        "tai lieu do",
+        "van ban do",
+        "noi dung do",
+        "cai do",
     )
     _user_history_patterns = (
         "file cu",
@@ -131,11 +141,25 @@ class ScopeResolver:
         ["'“”‘’`]?
         """
     )
-    _procedure_title_pattern = re.compile(
+    _procedure_intent_tail_pattern = re.compile(
         r"""(?ix)
-        ^\s*
-        (?P<title>.+?)
-        \s*(?:la\s+gi|nhu\s+the\s+nao|ra\s+sao|bao\s+lau|o\s+dau|can\s+gi|co\s+gi|nao)\s*\??\s*$
+        \s*
+        (?:
+            can\s+(?:ho\s+so(?:\s+gi)?|giay\s+to(?:\s+gi)?|nhung\s+gi|gi)|
+            gom\s+(?:nhung\s+gi|gi)|
+            co\s+(?:nhung\s+gi|gi)|
+            thoi\s+han\s+(?:bao\s+lau|la\s+bao\s+lau|giai\s+quyet\s+bao\s+lau)|
+            le\s+phi\s+(?:bao\s+nhieu|la\s+bao\s+nhieu|thi\s+sao)|
+            phi\s+(?:bao\s+nhieu|la\s+bao\s+nhieu|thi\s+sao)|
+            mat\s+bao\s+lau|
+            xu\s+ly\s+bao\s+lau|
+            la\s+gi|
+            nhu\s+the\s+nao|
+            ra\s+sao|
+            o\s+dau|
+            nao
+        )
+        \s*\??\s*$
         """
     )
 
@@ -156,7 +180,7 @@ class ScopeResolver:
             return None
 
         candidate = question
-        for keyword in ("thủ tục", "quy trình", "hồ sơ", "quy định", "procedure"):
+        for keyword in ("thủ tục", "procedure", "quy trình", "hồ sơ", "quy định"):
             keyword_normalized = _normalize_text(keyword)
             if keyword_normalized in normalized:
                 index = normalized.find(keyword_normalized)
@@ -165,18 +189,20 @@ class ScopeResolver:
 
         candidate = _strip_quotes(candidate)
         candidate = re.sub(r"^\s*[:\-]\s*", "", candidate)
+        candidate = re.sub(r"^\s*(của|cho|về)\s+", "", candidate, flags=re.IGNORECASE)
         candidate = re.sub(r"\s+", " ", candidate).strip()
         if not candidate:
             return None
 
-        match = self._procedure_title_pattern.match(candidate)
-        if match:
-            candidate = match.group("title")
-
-        candidate = re.sub(r"\s+", " ", candidate).strip()
         candidate_normalized = _normalize_text(candidate)
+        tail_match = self._procedure_intent_tail_pattern.search(candidate_normalized)
+        if tail_match:
+            candidate = candidate[: tail_match.start()].strip(" ,.;:-")
+            candidate_normalized = _normalize_text(candidate)
 
         if not candidate or candidate_normalized in {"thu tuc", "quy trinh", "ho so", "quy dinh"}:
+            return None
+        if candidate_normalized.startswith(("hanh chinh", "thu tuc hanh chinh")):
             return None
         if candidate_normalized.endswith(("la gi", "nao", "nhu the nao", "ra sao")):
             return None
@@ -293,9 +319,12 @@ class ScopeResolver:
             matched_rules.append("follow_up")
             detected_procedure_title = detected_procedure_title or last_procedure_title
             detected_filename = detected_filename or last_filename
+        elif self._contains_any(normalized_question, self._ambiguous_document_patterns):
+            scope_name = RETRIEVAL_SCOPE_NEED_CLARIFICATION
+            matched_rules.append("ambiguous_document_reference")
         elif not self._contains_any(normalized_question, self._system_general_patterns) and not self._contains_any(
             normalized_question,
-            self._current_upload_patterns + self._user_history_patterns + self._compare_patterns,
+            self._current_upload_patterns + self._user_history_patterns + self._compare_patterns + self._ambiguous_document_patterns,
         ):
             scope_name = RETRIEVAL_SCOPE_GENERAL_QUERY
             matched_rules.append("general_query")

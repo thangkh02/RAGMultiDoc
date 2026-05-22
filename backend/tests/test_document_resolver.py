@@ -130,6 +130,7 @@ def test_conversation_state_updates_last_referenced_document():
 
     next_state = manager.update_after_answer(
         state=state,
+        intent="ask_question",
         scope=RETRIEVAL_SCOPE_USER_FILE_NAME,
         sources=[
             {
@@ -140,10 +141,14 @@ def test_conversation_state_updates_last_referenced_document():
             }
         ],
         selected_document_ids=["doc_1"],
+        rewritten_question="File hoc_phi.pdf nói gì?",
         detected_filename="hoc_phi.pdf",
     )
 
+    assert next_state["last_intent"] == "ask_question"
     assert next_state["last_scope"] == RETRIEVAL_SCOPE_USER_FILE_NAME
     assert next_state["last_filename"] == "hoc_phi.pdf"
+    assert next_state["last_document_ids"] == ["doc_1"]
+    assert next_state["last_rewritten_question"] == "File hoc_phi.pdf nói gì?"
     assert next_state["last_referenced_doc"]["document_id"] == "doc_1"
     assert next_state["current_session_docs"] == ["doc_1"]

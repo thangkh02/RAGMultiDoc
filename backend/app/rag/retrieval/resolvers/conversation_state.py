@@ -15,15 +15,21 @@ class ConversationStateManager:
     def update_after_answer(
         self,
         state: dict[str, Any],
+        intent: str,
         scope: str,
         sources: list[dict[str, Any]],
         selected_document_ids: list[str],
+        rewritten_question: str | None = None,
         detected_procedure_title: str | None = None,
         detected_filename: str | None = None,
     ) -> dict[str, Any]:
         next_state = dict(state)
+        next_state["last_intent"] = intent
         next_state["last_scope"] = scope
         next_state["last_sources"] = sources
+        next_state["last_document_ids"] = selected_document_ids
+        if rewritten_question:
+            next_state["last_rewritten_question"] = rewritten_question
         next_state["active_document_ids"] = selected_document_ids or next_state.get("active_document_ids", [])
 
         if detected_procedure_title:

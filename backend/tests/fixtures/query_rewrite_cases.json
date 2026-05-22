@@ -1,0 +1,55 @@
+[
+  {
+    "id": "rewrite_follow_up_procedure",
+    "question": "Thế thời hạn bao lâu?",
+    "intent_resolution": {
+      "intent": "follow_up",
+      "is_follow_up": true
+    },
+    "scope_resolution": {
+      "detected_procedure_title": null
+    },
+    "document_resolution": {
+      "resolved_documents": []
+    },
+    "conversation_state": {
+      "last_procedure_title": "Đăng ký thành lập doanh nghiệp tư nhân"
+    },
+    "expected_was_rewritten": true,
+    "expected_contains": "Đăng ký thành lập doanh nghiệp tư nhân"
+  },
+  {
+    "id": "rewrite_ambiguous_uploaded_file",
+    "question": "Nó yêu cầu giấy tờ gì?",
+    "intent_resolution": {
+      "intent": "follow_up",
+      "is_follow_up": true
+    },
+    "scope_resolution": {},
+    "document_resolution": {
+      "resolved_documents": []
+    },
+    "conversation_state": {
+      "last_filename": "hoc_phi_2024.pdf"
+    },
+    "expected_was_rewritten": true,
+    "expected_contains": "hoc_phi_2024.pdf"
+  },
+  {
+    "id": "do_not_rewrite_clear_question",
+    "question": "Thủ tục đăng ký thành lập doanh nghiệp tư nhân cần hồ sơ gì?",
+    "intent_resolution": {
+      "intent": "ask_question",
+      "is_follow_up": false
+    },
+    "scope_resolution": {
+      "detected_procedure_title": "Đăng ký thành lập doanh nghiệp tư nhân"
+    },
+    "document_resolution": {
+      "resolved_documents": []
+    },
+    "conversation_state": {},
+    "expected_was_rewritten": false,
+    "expected_rewritten_question": "Thủ tục đăng ký thành lập doanh nghiệp tư nhân cần hồ sơ gì?"
+  }
+]

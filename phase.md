@@ -30,6 +30,30 @@
 - **10. Lưu `last_referenced_doc` cho câu hỏi follow-up**  
   Sau mỗi câu trả lời, hệ thống cập nhật conversation state bằng document/source vừa dùng để các câu hỏi nối tiếp có thể dùng lại đúng scope và đúng document.
 
+- **11. Hoàn thiện Intent Router**  
+  Đã thêm `IntentRouter` để xác định user muốn làm gì: hỏi đáp, tóm tắt, so sánh, tìm thông tin, follow-up, câu hỏi chung hoặc cần làm rõ. Router cũng trả về `answer_style` như `short_answer`, `bullet_list`, `summary`, `comparison`, `steps`.
+
+- **12. Hoàn thiện Query Rewrite**  
+  Đã thêm `QueryRewriter` để chỉ rewrite câu hỏi follow-up hoặc câu hỏi mơ hồ sau khi đã biết scope/document. Câu hỏi rõ ràng được giữ nguyên.
+
+- **13. Hoàn thiện Retrieval Strategy và Context Validation**  
+  Đã thêm retrieval strategy để chọn top-k theo intent và tách riêng nhánh `system_chunks` / `user_upload_chunks` khi so sánh. Đã thêm context validation để loại context rỗng, sai metadata hoặc score thấp trước khi đưa vào LLM.
+
+- **14. Hoàn thiện prompt trả lời và Source Formatter**  
+  Đã cập nhật prompt để bắt LLM chỉ trả lời theo context, không bịa, nói rõ khi không tìm thấy thông tin. Đã thêm `SourceFormatter` để mở đầu câu trả lời theo tài liệu hệ thống, tài liệu upload hoặc mixed source.
+
+- **15. Hoàn thiện logging toàn bộ pipeline**  
+  Đã ghi log vào `retrieval_logs` sau mỗi câu hỏi, gồm query gốc, query rewrite, intent, scope, document được chọn, filter retrieval, chunk retrieved, context validation, source và preview câu trả lời.
+
+- **16. Bổ sung test case theo nhóm tình huống**  
+  Đã thêm fixture JSON cho intent, query rewrite, scope, retrieval evaluation và answer evaluation để kiểm tra file mới upload, file cũ, system docs, follow-up, mixed source và câu hỏi mơ hồ.
+
+- **17. Kiểm tra retrieval đúng chunk**  
+  Đã thêm test đánh giá retrieval bằng expected chunk ids, đồng thời kiểm tra loại bỏ chunk sai metadata, sai user hoặc score thấp.
+
+- **18. Đánh giá answer theo context và nguồn**  
+  Đã thêm test kiểm tra fallback khi không có context và kiểm tra source formatter cho system-only, user-upload-only và mixed source.
+
 ---
 
 
@@ -55,33 +79,33 @@
 
 ### Giai đoạn 2: Hoàn thiện truy vấn và câu trả lời
 
-- **6. Làm Intent Router**  
+- **6. Làm Intent Router - Đã hoàn thành**  
   Nhận diện user đang hỏi file hiện tại, tài liệu hệ thống, file cũ, câu hỏi tiếp theo hay câu hỏi so sánh.
 
-- **7. Rewrite câu hỏi mơ hồ sau khi đã biết scope/document**  
+- **7. Rewrite câu hỏi mơ hồ sau khi đã biết scope/document - Đã hoàn thành**  
   Biến câu hỏi thiếu ngữ cảnh thành câu hỏi đầy đủ hơn để tăng độ chính xác khi truy xuất.
 
-- **8. Thiết kế prompt trả lời bám sát context**  
+- **8. Thiết kế prompt trả lời bám sát context - Đã hoàn thành**  
   Bắt LLM chỉ trả lời dựa trên chunk retrieve được, không tự suy diễn nếu tài liệu không có thông tin.
 
-- **9. Xử lý khi không tìm thấy thông tin**  
+- **9. Xử lý khi không tìm thấy thông tin - Đã hoàn thành**  
   Nếu retrieval không có chunk đủ liên quan, hệ thống phải trả lời rõ là không tìm thấy trong tài liệu, không được bịa.
 
-- **10. Trả lời rõ nguồn tài liệu**  
+- **10. Trả lời rõ nguồn tài liệu - Đã hoàn thành**  
   Phân biệt rõ câu trả lời theo tài liệu upload hay theo tài liệu hệ thống. Nếu có nhiều nguồn thì tách phần trả lời tương ứng.
 
 ### Giai đoạn 3: Logging và kiểm thử
 
-- **11. Logging toàn bộ pipeline**  
+- **11. Logging toàn bộ pipeline - Đã hoàn thành**  
   Ghi lại query gốc, query rewrite, intent, scope, document được chọn, filter retrieval, chunk retrieved và câu trả lời cuối cùng.
 
-- **12. Tạo test case theo từng nhóm tình huống**  
+- **12. Tạo test case theo từng nhóm tình huống - Đã hoàn thành**  
   Chuẩn bị test cho file mới upload, file cũ, system docs, follow-up, mixed source và câu hỏi mơ hồ.
 
-- **13. Kiểm tra retrieval có lấy đúng chunk hay không**  
+- **13. Kiểm tra retrieval có lấy đúng chunk hay không - Đã hoàn thành**  
   Xác nhận pipeline truy xuất ra đúng chunk cần thiết trước khi đưa vào LLM.
 
-- **14. Đánh giá answer theo context**  
+- **14. Đánh giá answer theo context - Đã hoàn thành**  
   Kiểm tra câu trả lời có đúng nguồn, đúng nội dung và không suy diễn ngoài tài liệu.
 
 ### Giai đoạn 4: Tối ưu sau
@@ -112,11 +136,10 @@ User query
 → Scope Resolver
 → Document Resolver
 → Query Rewrite
-→ Retrieval Planner
-→ Metadata Filter
-→ Vector / Hybrid Search
-→ Rerank
-→ Context Packing
+→ Retrieval Strategy
+→ Retrieval
+→ Context Validation
 → Answer Generator
+→ Source Formatter
 → Save last document + log trace
 ```

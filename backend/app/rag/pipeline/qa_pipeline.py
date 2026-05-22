@@ -1,17 +1,26 @@
 from app.core.constants import RETRIEVAL_SCOPE_AUTO, RETRIEVAL_SCOPE_NEED_CLARIFICATION
 from app.rag.generation.openai_llm import OpenAILLMService
+from app.rag.generation.source_formatter import SourceFormatter
+from app.rag.query import IntentRouter, QueryRewriter
+from app.rag.retrieval.context_validator import FALLBACK_NO_CONTEXT, ContextValidator
 from app.rag.retrieval.resolvers import DocumentResolver, ScopeResolver
 from app.rag.retrieval.retriever import Retriever
+from app.rag.retrieval.strategy import RetrievalStrategy
 from app.schemas.common_schema import SourceItem
 from langsmith import traceable
 
 
 class QAPipeline:
     def __init__(self) -> None:
+        self.intent_router = IntentRouter()
         self.scope_resolver = ScopeResolver()
         self.document_resolver = DocumentResolver()
+        self.query_rewriter = QueryRewriter()
+        self.retrieval_strategy = RetrievalStrategy()
+        self.context_validator = ContextValidator()
         self.retriever = Retriever()
         self.llm = OpenAILLMService()
+        self.source_formatter = SourceFormatter()
 
     async def run(
         self,
@@ -34,6 +43,8 @@ class QAPipeline:
         selected_document_ids: list[str] | None = None,
         conversation_state: dict | None = None,
     ) -> dict:
+        conversation_state = conversation_state or {}
+        intent_resolution = self.intent_router.route(question=question, conversation_state=conversation_state)
         resolution = self.scope_resolver.resolve(
             question=question,
             user_id=user_id,
@@ -52,15 +63,58 @@ class QAPipeline:
             selected_document_ids=selected_document_ids,
             conversation_state=conversation_state,
         )
+        query_rewrite = self.query_rewriter.rewrite(
+            question=question,
+            intent_resolution=intent_resolution.model_dump(),
+            scope_resolution=resolution.model_dump(),
+            document_resolution=document_resolution.model_dump(),
+            conversation_state=conversation_state,
+        )
+        retrieval_plan = self.retrieval_strategy.plan(
+            rewritten_question=query_rewrite.rewritten_question,
+            intent_resolution=intent_resolution.model_dump(),
+            scope=resolution.scope,
+            metadata_filter=document_resolution.metadata_filter,
+        )
 
-        if resolution.scope == RETRIEVAL_SCOPE_NEED_CLARIFICATION or document_resolution.needs_clarification:
-            answer = "Mình cần bạn làm rõ tài liệu muốn hỏi: file vừa upload, file cũ, tài liệu hệ thống, hoặc một file cụ thể."
-            contexts: list[dict] = []
+        contexts: list[dict] = []
+        branch_results: list[dict] = []
+        if (
+            resolution.scope == RETRIEVAL_SCOPE_NEED_CLARIFICATION
+            or document_resolution.needs_clarification
+            or not intent_resolution.needs_retrieval
+            or not retrieval_plan.should_retrieve
+        ):
+            answer = (
+                "Mình cần bạn làm rõ tài liệu muốn hỏi: file vừa upload, file cũ, tài liệu hệ thống, hoặc một file cụ thể."
+                if resolution.scope == RETRIEVAL_SCOPE_NEED_CLARIFICATION or document_resolution.needs_clarification
+                else FALLBACK_NO_CONTEXT
+            )
+            context_validation = self.context_validator.validate_all([])
         else:
-            contexts = []
-            if resolution.should_retrieve:
-                contexts = self.retriever.retrieve(question=question, where_filter=document_resolution.metadata_filter)
-            answer = self.llm.generate_answer(question=question, contexts=contexts)
+            for branch in retrieval_plan.branches:
+                branch_contexts = self.retriever.retrieve(
+                    question=branch.query,
+                    where_filter=branch.metadata_filter,
+                    top_k=branch.top_k,
+                )
+                branch_results.append(
+                    {
+                        "name": branch.name,
+                        "metadata_filter": branch.metadata_filter,
+                        "contexts": branch_contexts,
+                    }
+                )
+            context_validation = self.context_validator.validate_all(branch_results)
+            contexts = context_validation.contexts
+            if not context_validation.should_answer:
+                answer = context_validation.fallback_answer or FALLBACK_NO_CONTEXT
+            else:
+                answer = self.llm.generate_answer(
+                    question=query_rewrite.rewritten_question,
+                    contexts=contexts,
+                    answer_style=intent_resolution.answer_style,
+                )
 
         sources = [
             SourceItem(
@@ -79,12 +133,17 @@ class QAPipeline:
             ).model_dump()
             for item in contexts
         ]
+        answer = self.source_formatter.format_answer(answer, sources)
         return {
             "answer": answer,
             "sources": sources,
             "raw_contexts": contexts,
             "scope": resolution.scope,
+            "intent_resolution": intent_resolution.model_dump(),
             "scope_resolution": resolution.model_dump(),
             "document_resolution": document_resolution.model_dump(),
+            "query_rewrite": query_rewrite.model_dump(),
+            "retrieval_plan": retrieval_plan.model_dump(),
+            "context_validation": context_validation.model_dump(),
             "retrieval_filter": document_resolution.metadata_filter,
         }

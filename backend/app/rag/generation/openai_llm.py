@@ -13,7 +13,7 @@ class OpenAILLMService:
         self.prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", RAG_SYSTEM_PROMPT),
-                ("human", "Question: {question}\n\nContext:\n{context}"),
+                ("human", "Question: {question}\n\nAnswer style: {answer_style}\n\nContext:\n{context}"),
             ]
         )
         self.llm = None
@@ -36,12 +36,11 @@ class OpenAILLMService:
             ]
         )
 
-    def generate_answer(self, question: str, contexts: list[dict]) -> str:
+    def generate_answer(self, question: str, contexts: list[dict], answer_style: str = "short_answer") -> str:
         if not contexts:
-            return "Không tìm thấy thông tin trong tài liệu."
-        if self.chain is None:
-            context_text = self._build_context_text(contexts)
-            return f"[LangChain] OPENAI_API_KEY chưa được cấu hình.\n\n{context_text[:1200]}"
+            return "Không tìm thấy thông tin này trong tài liệu phù hợp."
         context_text = self._build_context_text(contexts)
-        result = self.chain.invoke({"question": question, "context": context_text})
+        if self.chain is None:
+            return f"[LangChain] OPENAI_API_KEY chưa được cấu hình.\n\n{context_text[:1200]}"
+        result = self.chain.invoke({"question": question, "answer_style": answer_style, "context": context_text})
         return result.strip() if isinstance(result, str) else str(result)

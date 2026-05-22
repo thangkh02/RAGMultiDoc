@@ -1,0 +1,140 @@
+[
+  {
+    "id": "system_procedure_exact_title_with_intent_tail",
+    "description": "User asks a concrete administrative procedure from system docs and adds an answer intent.",
+    "question": "Thủ tục Công bố cơ sở đủ điều kiện sản xuất chế phẩm diệt côn trùng, diệt khuẩn dùng trong lĩnh vực gia dụng và y tế cần hồ sơ gì?",
+    "user_id": "user_1",
+    "session_id": "sess_1",
+    "expected_scope": "system_procedure",
+    "expected_should_retrieve": true,
+    "expected_detected_procedure_title": "Công bố cơ sở đủ điều kiện sản xuất chế phẩm diệt côn trùng, diệt khuẩn dùng trong lĩnh vực gia dụng và y tế",
+    "expected_metadata_contains": {
+      "source_type": "system",
+      "visibility": "global",
+      "procedure_title": "Công bố cơ sở đủ điều kiện sản xuất chế phẩm diệt côn trùng, diệt khuẩn dùng trong lĩnh vực gia dụng và y tế"
+    }
+  },
+  {
+    "id": "system_docs_general_procedure_question",
+    "description": "User asks generally about administrative procedure requirements without naming a specific procedure.",
+    "question": "Hồ sơ thủ tục hành chính thường gồm những gì?",
+    "user_id": "user_1",
+    "session_id": "sess_1",
+    "expected_scope": "system_docs",
+    "expected_should_retrieve": true,
+    "expected_metadata_contains": {
+      "source_type": "system",
+      "visibility": "global"
+    }
+  },
+  {
+    "id": "current_session_uploaded_document",
+    "description": "User asks about the document just uploaded in current session.",
+    "question": "File vừa tải lên nói gì?",
+    "user_id": "user_1",
+    "session_id": "sess_1",
+    "expected_scope": "current_session_uploads",
+    "expected_should_retrieve": true,
+    "expected_metadata_contains": {
+      "source_type": "user_upload",
+      "owner_user_id": "user_1",
+      "session_id": "sess_1"
+    }
+  },
+  {
+    "id": "previous_session_uploaded_document",
+    "description": "User asks about a document uploaded in another/older session.",
+    "question": "Tài liệu lần trước tôi upload nói gì?",
+    "user_id": "user_1",
+    "session_id": "sess_2",
+    "expected_scope": "user_all_uploads",
+    "expected_should_retrieve": true,
+    "expected_metadata_contains": {
+      "source_type": "user_upload",
+      "owner_user_id": "user_1"
+    }
+  },
+  {
+    "id": "specific_uploaded_filename",
+    "description": "User names an uploaded file explicitly.",
+    "question": "File hoc_phi_2024.pdf nói gì?",
+    "user_id": "user_1",
+    "session_id": "sess_1",
+    "expected_scope": "user_file_name",
+    "expected_should_retrieve": true,
+    "expected_detected_filename": "hoc_phi_2024.pdf",
+    "expected_metadata_contains": {
+      "source_type": "user_upload",
+      "owner_user_id": "user_1",
+      "filename": "hoc_phi_2024.pdf"
+    }
+  },
+  {
+    "id": "hybrid_compare_system_and_user_upload",
+    "description": "User wants to compare official procedure requirements with their uploaded file.",
+    "question": "Đối chiếu tài liệu hệ thống với file tôi upload xem có đáp ứng không",
+    "user_id": "user_1",
+    "session_id": "sess_1",
+    "expected_scope": "hybrid_system_and_user",
+    "expected_should_retrieve": true,
+    "expected_metadata_has_key": "$or"
+  },
+  {
+    "id": "follow_up_uses_last_system_procedure",
+    "description": "Follow-up question should reuse last system procedure scope and title.",
+    "question": "Thế thời hạn bao lâu?",
+    "user_id": "user_1",
+    "session_id": "sess_1",
+    "conversation_state": {
+      "last_scope": "system_procedure",
+      "last_procedure_title": "Đăng ký thành lập doanh nghiệp tư nhân"
+    },
+    "expected_scope": "system_procedure",
+    "expected_should_retrieve": true,
+    "expected_detected_procedure_title": "Đăng ký thành lập doanh nghiệp tư nhân",
+    "expected_metadata_contains": {
+      "source_type": "system",
+      "visibility": "global",
+      "procedure_title": "Đăng ký thành lập doanh nghiệp tư nhân"
+    }
+  },
+  {
+    "id": "follow_up_uses_last_uploaded_filename",
+    "description": "Follow-up question should reuse last uploaded file scope and filename.",
+    "question": "Còn lệ phí thì sao?",
+    "user_id": "user_1",
+    "session_id": "sess_1",
+    "conversation_state": {
+      "last_scope": "user_file_name",
+      "last_filename": "hoc_phi_2024.pdf"
+    },
+    "expected_scope": "user_file_name",
+    "expected_should_retrieve": true,
+    "expected_detected_filename": "hoc_phi_2024.pdf",
+    "expected_metadata_contains": {
+      "source_type": "user_upload",
+      "owner_user_id": "user_1",
+      "filename": "hoc_phi_2024.pdf"
+    }
+  },
+  {
+    "id": "general_query_does_not_retrieve",
+    "description": "General knowledge question should not search vector DB.",
+    "question": "Giải thích embedding là gì?",
+    "user_id": "user_1",
+    "session_id": "sess_1",
+    "expected_scope": "general_query",
+    "expected_should_retrieve": false,
+    "expected_metadata_contains": {}
+  },
+  {
+    "id": "ambiguous_document_reference_needs_clarification",
+    "description": "A document reference without current state should ask for clarification.",
+    "question": "Tài liệu đó nói gì?",
+    "user_id": "user_1",
+    "session_id": "sess_1",
+    "expected_scope": "need_clarification",
+    "expected_should_retrieve": false,
+    "expected_metadata_contains": {}
+  }
+]
