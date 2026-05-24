@@ -1,6 +1,5 @@
 # RAG Pipeline Hiện Tại
 
-Pipeline hiện tại đã được refactor sang LangGraph. `QAPipeline.run()` vẫn là facade để API cũ không bị thay đổi, nhưng bên trong gọi `RAGGraphRunner`.
 
 ## Sơ Đồ Tổng Thể
 
