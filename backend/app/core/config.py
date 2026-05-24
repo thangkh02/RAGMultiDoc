@@ -22,10 +22,12 @@ class Settings(BaseSettings):
     OPENROUTER_QUERY_REWRITE_MODEL: str = "google/gemini-3.1-flash-lite-preview"
     OPENROUTER_REWRITE_GATE_MODEL: str = "google/gemini-3.1-flash-lite-preview"
     OPENROUTER_INTENT_MODEL: str = "google/gemini-3.1-flash-lite-preview"
+    OPENROUTER_SCOPE_MODEL: str = "google/gemini-3.1-flash-lite-preview"
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     OPENROUTER_SITE_URL: str = ""
     OPENROUTER_APP_NAME: str = "RAG Chatbot"
     INTENT_ROUTER_USE_LLM: bool = True
+    SCOPE_RESOLVER_USE_LLM: bool = True
     LANGSMITH_TRACING: str = "false"
     LANGSMITH_ENDPOINT: str = "https://api.smith.langchain.com"
     LANGSMITH_API_KEY: str = ""

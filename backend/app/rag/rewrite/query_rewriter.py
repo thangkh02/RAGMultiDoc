@@ -192,6 +192,19 @@ class QueryRewriter:
             used_llm=True,
         )
 
+    def rewrite_standalone(
+        self,
+        question: str,
+        conversation_state: dict[str, Any] | None = None,
+    ) -> QueryRewrite:
+        rewrite = self.rewrite_after_intent(
+            question=question,
+            intent_resolution={"intent": REWRITE_INTENT_FOLLOW_UP, "is_follow_up": True},
+            conversation_state=conversation_state,
+        )
+        rewrite.stage = "pre_intent"
+        return rewrite
+
     def rewrite(
         self,
         question: str,

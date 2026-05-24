@@ -19,6 +19,7 @@ INTENT_COMPARE_DOCUMENTS = "compare_documents"
 INTENT_FIND_INFORMATION = "find_information"
 INTENT_GENERAL_QUERY = "general_query"
 INTENT_NEED_CLARIFICATION = "need_clarification"
+INTENT_UNSUPPORTED = "unsupported"
 
 ANSWER_STYLE_SHORT = "short_answer"
 ANSWER_STYLE_BULLET_LIST = "bullet_list"
@@ -74,9 +75,9 @@ class IntentRouter:
                             "Bạn là Intent Router cho hệ thống RAG tiếng Việt.\n"
                             "Input đã được rewrite nếu là follow-up, nên không dùng intent follow_up.\n"
                             "Chỉ chọn một intent chính: ask_question, summarize_document, compare_documents, "
-                            "find_information, general_query, need_clarification.\n"
+                            "find_information, general_query, need_clarification, unsupported.\n"
                             "answer_style chỉ chọn: short_answer, bullet_list, summary, comparison, steps.\n"
-                            "needs_retrieval=false cho general_query hoặc need_clarification.\n"
+                            "needs_retrieval=false cho general_query, need_clarification hoặc unsupported.\n"
                             "Trả về JSON hợp lệ, không markdown, không giải thích.\n"
                             "Schema: {\"intent\":\"...\",\"answer_style\":\"...\",\"needs_retrieval\":true,"
                             "\"confidence\":0.0,\"reason\":\"...\"}"
@@ -132,6 +133,7 @@ class IntentRouter:
             INTENT_FIND_INFORMATION,
             INTENT_GENERAL_QUERY,
             INTENT_NEED_CLARIFICATION,
+            INTENT_UNSUPPORTED,
         }
         intent = payload.get("intent")
         if intent not in allowed_intents:
@@ -149,7 +151,7 @@ class IntentRouter:
             intent=intent,
             answer_style=answer_style,
             is_follow_up=False,
-            needs_retrieval=bool(payload.get("needs_retrieval", intent not in {INTENT_GENERAL_QUERY, INTENT_NEED_CLARIFICATION})),
+            needs_retrieval=bool(payload.get("needs_retrieval", intent not in {INTENT_GENERAL_QUERY, INTENT_NEED_CLARIFICATION, INTENT_UNSUPPORTED})),
             confidence=float(payload.get("confidence", 0.75)),
             matched_rules=["llm_intent_router"],
             reason=payload.get("reason") or "Resolved by OpenRouter intent router.",
@@ -168,6 +170,15 @@ class IntentRouter:
                 confidence=0.9,
                 matched_rules=["ambiguous_reference_without_state"],
                 reason="Question references a document ambiguously without conversation state.",
+            )
+
+        if any(term in text for term in ("ve tranh", "tao anh", "viet code", "lap trinh", "dat ve", "mua hang")):
+            return IntentResolution(
+                intent=INTENT_UNSUPPORTED,
+                needs_retrieval=False,
+                confidence=0.82,
+                matched_rules=["unsupported_non_rag_task"],
+                reason="Question is outside the supported document QA scope.",
             )
 
         if any(term in text for term in ("so sanh", "doi chieu", "khac nhau", "giong nhau", "dap ung")):

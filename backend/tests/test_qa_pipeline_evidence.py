@@ -89,8 +89,13 @@ def test_qa_pipeline_retrieves_and_keeps_evidence_chunk():
     )
 
     assert len(pipeline.retriever.calls) == 1
-    assert pipeline.retriever.calls[0]["where_filter"]["source_type"] == "system"
-    assert pipeline.retriever.calls[0]["where_filter"]["procedure_title"] == "Đăng ký thành lập doanh nghiệp tư nhân"
+    where_filter = pipeline.retriever.calls[0]["where_filter"]
+    assert where_filter["$and"][0]["$and"] == [
+        {"source_type": "system"},
+        {"visibility": "global"},
+        {"procedure_title": "Đăng ký thành lập doanh nghiệp tư nhân"},
+    ]
+    assert {"document_id": {"$in": ["sysdoc_1"]}} in where_filter["$and"]
 
     evidence_chunk_ids = [item["metadata"]["chunk_id"] for item in result["raw_contexts"]]
     assert evidence_chunk_ids == ["chunk_evidence_1"]

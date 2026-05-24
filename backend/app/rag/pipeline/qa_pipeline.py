@@ -1,13 +1,13 @@
 from app.core.constants import RETRIEVAL_SCOPE_AUTO, RETRIEVAL_SCOPE_NEED_CLARIFICATION
 from app.rag.generation.openai_llm import OpenAILLMService
 from app.rag.generation.source_formatter import SourceFormatter
+from app.rag.graph import RAGGraphRunner
 from app.rag.query import IntentRouter
-from app.rag.rewrite import QueryRewrite, QueryRewriter, RewriteGate
+from app.rag.rewrite import QueryRewriter, RewriteGate
 from app.rag.retrieval.context_validator import FALLBACK_NO_CONTEXT, ContextValidator
 from app.rag.retrieval.resolvers import DocumentResolver, ScopeResolver
 from app.rag.retrieval.retriever import Retriever
 from app.rag.retrieval.strategy import RetrievalStrategy
-from app.schemas.common_schema import SourceItem
 from langsmith import traceable
 
 
@@ -46,117 +46,29 @@ class QAPipeline:
         conversation_state: dict | None = None,
     ) -> dict:
         conversation_state = conversation_state or {}
-        rewrite_gate = self.rewrite_gate.decide(original_query=question, conversation_state=conversation_state)
-        if rewrite_gate.needs_rewrite:
-            query_rewrite = self.query_rewriter.rewrite_after_intent(
-                question=question,
-                intent_resolution={"intent": "follow_up", "is_follow_up": True},
-                conversation_state=conversation_state,
-            )
-        else:
-            query_rewrite = QueryRewrite(
-                original_question=question,
-                rewritten_question=question,
-                was_rewritten=False,
-                reason="Rewrite gate decided query does not need rewrite.",
-                stage="pre_intent_gate",
-                used_llm=False,
-            )
-        final_query = query_rewrite.rewritten_question
-        intent_resolution = self.intent_router.route(question=final_query, conversation_state=conversation_state)
-        resolution = self.scope_resolver.resolve(
-            question=final_query,
-            user_id=user_id,
-            session_id=session_id,
-            scope=scope if scope != RETRIEVAL_SCOPE_AUTO else RETRIEVAL_SCOPE_AUTO,
-            selected_document_ids=selected_document_ids,
-            conversation_state=conversation_state,
+        graph_result = await RAGGraphRunner(self).run(
+            {
+                "original_query": question,
+                "user_id": user_id,
+                "session_id": session_id,
+                "requested_scope": scope if scope != RETRIEVAL_SCOPE_AUTO else RETRIEVAL_SCOPE_AUTO,
+                "selected_document_ids": selected_document_ids or [],
+                "runtime_context": conversation_state,
+            }
         )
-        document_resolution = await self.document_resolver.resolve(
-            scope=resolution.scope,
-            metadata_filter=resolution.metadata_filter,
-            user_id=user_id,
-            session_id=session_id,
-            detected_filename=resolution.detected_filename,
-            detected_procedure_title=resolution.detected_procedure_title,
-            selected_document_ids=selected_document_ids,
-            conversation_state=conversation_state,
-        )
-        retrieval_plan = self.retrieval_strategy.plan(
-            rewritten_question=query_rewrite.rewritten_question,
-            intent_resolution=intent_resolution.model_dump(),
-            scope=resolution.scope,
-            metadata_filter=document_resolution.metadata_filter,
-        )
-
-        contexts: list[dict] = []
-        branch_results: list[dict] = []
-        if (
-            resolution.scope == RETRIEVAL_SCOPE_NEED_CLARIFICATION
-            or document_resolution.needs_clarification
-            or not intent_resolution.needs_retrieval
-            or not retrieval_plan.should_retrieve
-        ):
-            answer = (
-                "Mình cần bạn làm rõ tài liệu muốn hỏi: file vừa upload, file cũ, tài liệu hệ thống, hoặc một file cụ thể."
-                if resolution.scope == RETRIEVAL_SCOPE_NEED_CLARIFICATION or document_resolution.needs_clarification
-                else FALLBACK_NO_CONTEXT
-            )
-            context_validation = self.context_validator.validate_all([])
-        else:
-            for branch in retrieval_plan.branches:
-                branch_contexts = self.retriever.retrieve(
-                    question=branch.query,
-                    where_filter=branch.metadata_filter,
-                    top_k=branch.top_k,
-                )
-                branch_results.append(
-                    {
-                        "name": branch.name,
-                        "metadata_filter": branch.metadata_filter,
-                        "contexts": branch_contexts,
-                    }
-                )
-            context_validation = self.context_validator.validate_all(branch_results)
-            contexts = context_validation.contexts
-            if not context_validation.should_answer:
-                answer = context_validation.fallback_answer or FALLBACK_NO_CONTEXT
-            else:
-                answer = self.llm.generate_answer(
-                    question=query_rewrite.rewritten_question,
-                    contexts=contexts,
-                    answer_style=intent_resolution.answer_style,
-                )
-
-        sources = [
-            SourceItem(
-                document_id=item["metadata"].get("document_id", ""),
-                chunk_id=item["metadata"].get("chunk_id", item.get("id", "")),
-                filename=item["metadata"].get("filename", ""),
-                source_type=item["metadata"].get("source_type", ""),
-                procedure_title=item["metadata"].get("procedure_title"),
-                page_number=item["metadata"].get("page_number"),
-                page_source=item["metadata"].get("page_source"),
-                section_title=item["metadata"].get("section_title"),
-                score=item.get("similarity"),
-                visibility=item["metadata"].get("visibility"),
-                owner_user_id=item["metadata"].get("owner_user_id"),
-                session_id=item["metadata"].get("session_id"),
-            ).model_dump()
-            for item in contexts
-        ]
-        answer = self.source_formatter.format_answer(answer, sources)
+        scope_resolution = graph_result.get("scope_resolution") or {}
+        document_resolution = graph_result.get("document_resolution") or {}
         return {
-            "answer": answer,
-            "sources": sources,
-            "raw_contexts": contexts,
-            "scope": resolution.scope,
-            "intent_resolution": intent_resolution.model_dump(),
-            "scope_resolution": resolution.model_dump(),
-            "document_resolution": document_resolution.model_dump(),
-            "rewrite_gate": rewrite_gate.model_dump(),
-            "query_rewrite": query_rewrite.model_dump(),
-            "retrieval_plan": retrieval_plan.model_dump(),
-            "context_validation": context_validation.model_dump(),
-            "retrieval_filter": document_resolution.metadata_filter,
+            "answer": graph_result.get("answer", FALLBACK_NO_CONTEXT),
+            "sources": graph_result.get("sources", []),
+            "raw_contexts": graph_result.get("raw_contexts", []),
+            "scope": scope_resolution.get("scope", RETRIEVAL_SCOPE_NEED_CLARIFICATION),
+            "intent_resolution": graph_result.get("intent_resolution", {}),
+            "scope_resolution": scope_resolution,
+            "document_resolution": document_resolution,
+            "rewrite_gate": graph_result.get("rewrite_gate", {}),
+            "query_rewrite": graph_result.get("query_rewrite", {}),
+            "retrieval_plan": graph_result.get("retrieval_plan", {}),
+            "context_validation": graph_result.get("context_validation", {}),
+            "retrieval_filter": graph_result.get("metadata_filter", document_resolution.get("metadata_filter", {})),
         }

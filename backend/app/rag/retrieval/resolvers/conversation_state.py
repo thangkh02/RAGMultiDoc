@@ -22,6 +22,7 @@ class ConversationStateManager:
         rewritten_question: str | None = None,
         detected_procedure_title: str | None = None,
         detected_filename: str | None = None,
+        retrieval_filter: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         next_state = dict(state)
         next_state["last_intent"] = intent
@@ -36,6 +37,15 @@ class ConversationStateManager:
             next_state["last_procedure_title"] = detected_procedure_title
         if detected_filename:
             next_state["last_filename"] = detected_filename
+
+        next_state["last_resolved_context"] = {
+            "scope": scope,
+            "source_type": sources[0].get("source_type") if sources else None,
+            "procedure_title": detected_procedure_title or next_state.get("last_procedure_title"),
+            "filename": detected_filename or next_state.get("last_filename"),
+            "document_id": selected_document_ids[0] if selected_document_ids else None,
+            "filter": retrieval_filter,
+        }
 
         if sources:
             first_source = sources[0]

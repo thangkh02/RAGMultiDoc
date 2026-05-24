@@ -49,6 +49,7 @@ class ChatService:
             rewritten_question=result["query_rewrite"].get("rewritten_question"),
             detected_procedure_title=result["scope_resolution"].get("detected_procedure_title"),
             detected_filename=result["scope_resolution"].get("detected_filename"),
+            retrieval_filter=result["retrieval_filter"],
         )
         user_message = MessageModel(
             id=generate_id("msg"),
